@@ -1,10 +1,13 @@
 package lastpass
 
-import "github.com/grokify/gocharts/v2/data/table"
+import (
+	"encoding/csv"
+	"os"
+)
 
 type Accounts []Account
 
-func CSVColumns() []string {
+func csvColumns() []string {
 	return []string{
 		"url",
 		"username",
@@ -17,22 +20,7 @@ func CSVColumns() []string {
 	}
 }
 
-func (acs Accounts) Table() table.Table {
-	tbl := table.NewTable("LastPass accounts")
-	tbl.Columns = CSVColumns()
-	for _, ac := range acs {
-		if (Account{}) == ac {
-			continue
-		}
-		row := acs.TableRow(ac)
-		if len(row) > 0 {
-			tbl.Rows = append(tbl.Rows, row)
-		}
-	}
-	return tbl
-}
-
-func (acs Accounts) TableRow(a Account) []string {
+func (acs Accounts) tableRow(a Account) []string {
 	if (Account{}) == a {
 		return []string{}
 	}
@@ -49,8 +37,30 @@ func (acs Accounts) TableRow(a Account) []string {
 }
 
 func (acs Accounts) WriteCSV(filename string) error {
-	tbl := acs.Table()
-	return tbl.WriteCSV(filename)
+	f, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY, 0600)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	w := csv.NewWriter(f)
+	err = w.Write(csvColumns())
+	if err != nil {
+		return err
+	}
+	for _, ac := range acs {
+		if (Account{}) == ac {
+			continue
+		}
+		row := acs.tableRow(ac)
+		if len(row) > 0 {
+			err = w.Write(row)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	w.Flush()
+	return f.Close()
 }
 
 type Account struct {
